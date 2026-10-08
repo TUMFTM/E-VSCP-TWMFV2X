@@ -71,7 +71,7 @@ energy_selling_overhead_eur_per_kWh = 0.00        # deducted from spot when sell
 #            disposition run; several are a sweep.
 # The diesel price is flat either way; the basis only decides which sheet states it.
 energy_price_basis                  = 'auto'      # 'auto' | 'daily' | 'yearly'
-diesel_truck_toll_eur_per_km        = 0.183       # ice HDV toll
+diesel_truck_toll_eur_per_km        = 0.269       # ice HDV toll
 bev_truck_toll_eur_per_km           = 0.0         # bev HDV toll, often reduced
 pv_allow_synthetic_profile          = 'off'       # 'on' accepts a bell curve if PVGIS is unreachable
 pv_profile_retries                  = 3           # PVGIS attempts before giving up
