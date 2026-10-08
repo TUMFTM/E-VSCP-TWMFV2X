@@ -1,6 +1,6 @@
 # HDV Disposition Optimization
 
-MILP disposition model for HDV (heavy duty vehicle) fleets, with a Streamlit web
+MIQCP disposition model for HDV (heavy duty vehicle) fleets, with a Streamlit web
 interface as its standard operating environment.
 
 ## Layout
@@ -28,7 +28,7 @@ directory — `data/` is always safe to delete, `results/` is what you keep, and
 
 | Module | Role |
 | --- | --- |
-| `hdv_disposition_optimization.py` | the MILP model and the batch parameter sweep |
+| `hdv_disposition_optimization.py` | the MIQCP model and the batch parameter sweep |
 | `hdv_cost_parameter_generation.py` | `costs_dataset.xlsx` -> energy cost parameters |
 | `hdv_depot_load_profile_generation.py` | `depot_dataset.xlsx` -> depot load profile, PV plant, charging stations |
 | `hdv_trip_generation.py` | `order_dataset.xlsx` -> geocoded, routed trips |
@@ -552,7 +552,7 @@ place; merging it would be an invented fact.
 
 #### How a day becomes routes
 
-`src/hdv_route_chaining.py` does the geography as preprocessing, so the MILP only ever
+`src/hdv_route_chaining.py` does the geography as preprocessing, so the MIQCP only ever
 sees a small pruned candidate set. Two rules generate the chains:
 
 1. **Direct chain** — `g` may run straight after `f` whenever `g` starts where `f` ends.
@@ -569,7 +569,7 @@ a **return leg** back. Both are routed through the same service and cache the or
 uses; if the router cannot be reached for a leg the model itself invented, a straight line
 × 1.3 stands in rather than failing the day.
 
-#### What the MILP adds (3.3.16)
+#### What the MIQCP adds (3.3.16)
 
 | variable | meaning |
 | --- | --- |
@@ -628,7 +628,7 @@ own activity:
 | `standby_away` | idle **at a customer yard** — neither within reach | |
 
 `v2g_charge` is an **attribution**, not a model output. Charge in a battery is fungible and
-nothing in the MILP distinguishes a kWh bought to drive on from one bought to sell back, so
+nothing in the MIQCP distinguishes a kWh bought to drive on from one bought to sell back, so
 the convention is the one arbitrage itself implies: per vehicle, take the metered kWh needed
 to cover the day's arbitrage discharge (grossed up by both conversion efficiencies, since a
 sold kWh has to be bought back with the losses on top) and attribute it to that vehicle's
@@ -824,7 +824,7 @@ driver_max_shift_hours = driver_max_working_hours + driver_mandatory_break_hours
 
 because that is what it is — the span a driver is committed for is the work they may do
 plus the break they must take while doing it. It used to be its own parameter at 12 h
-against a 10 h working limit, which made it a second opinion about the same day: the MILP
+against a 10 h working limit, which made it a second opinion about the same day: the MIQCP
 accepted a 12 h absence the roster could not give to anybody who did anything else.
 Deriving it means an absence the optimisation accepts is always one a single driver can
 lawfully cover, which is the premise the whole crew side rests on. Setting it directly has
@@ -838,7 +838,7 @@ the penalty-free window it opens at a public station (3.4), and the gap between 
 duration and shift span. The minutes are derived from the hours.
 
 **Off-grid limits floor rather than round.** 9.75 h is 19.5 steps, and which way that half
-step goes decides whether the model is stricter or looser than the rule. The MILP used to
+step goes decides whether the model is stricter or looser than the rule. The MIQCP used to
 round — 20 steps, a 10 h absence against a 9.75 h limit — which also left it *more*
 permissive than the roster, which floors the same figure to 19. Both floor now, which is
 also the direction every other limit in this file leans: never allow more than the rule
@@ -855,7 +855,7 @@ same four trips (1537 km) are removed by 2.6c under the old 10 h span and under 
 9.75 h one, because every trip that fails the span was already failing the 9 h Lenkzeit.
 The binding limit here is the driving, not the spread.
 
-**The Lenkzeit is enforced in the roster, and it has to be.** The MILP caps driving per
+**The Lenkzeit is enforced in the roster, and it has to be.** The MIQCP caps driving per
 *absence*, with a counter the depot resets — correct only while one absence is one driver's
 day, which is a promise only the roster can keep. It is the roster that decides whether two
 absences share a driver, so it is the roster that checks the daily driving, using the
@@ -921,7 +921,7 @@ Three things follow, all of them in the output rather than in a footnote:
   the operator pays.
 - `drivers_beyond_model` counts the heads the roster needs past the peak the objective was
   charged for.
-- the MILP carries two volume bounds on `drivers_needed` — total away hours over
+- the MIQCP carries two volume bounds on `drivers_needed` — total away hours over
   `driver_max_working_hours`, total driving over `driver_max_driving_hours`. Both are valid
   (no driver absorbs more than their own limit) and both are one constraint. They do not
   close the gap and are not meant to: a bound on totals cannot express indivisibility. What
@@ -1040,7 +1040,7 @@ Two things that did *not* help, measured rather than assumed, so they are not tr
 finite bounds on the energy variables (0.80x), aggressive presolve (0.75x), concurrent MIP
 (0.68x / 0.34x), aggressive symmetry detection (no effect), and linearizing the SoC aging
 weight to escape the non-convex MIQCP class (0.88x — it does remove all 235 bilinear terms,
-but a MILP with 1880 extra binaries is not faster here).
+but a MIQCP with 1880 extra binaries is not faster here).
 
 A second sweep of 21 further options added: `OBBT`, `PreQLinearize`, `PreMIQCPForm` and
 `Disconnected` change nothing at all (identical node counts — `PreQLinearize` only acts on
@@ -1056,8 +1056,8 @@ has been referenced here for a long time and has never been committed. Treat eve
 in this section as a record of a decision that was taken, not as a figure to reproduce.
 
 The roster afterwards. That split is deliberate: which truck runs which trip is an energy and cost decision the
-MILP is built to make, while crewing the movements that result is a rostering problem that
-follows from it and would only make the MILP larger to no purpose.
+MIQCP is built to make, while crewing the movements that result is a rostering problem that
+follows from it and would only make the MIQCP larger to no purpose.
 
 The method rests on one observation: **a driver is tied to a vehicle exactly while that
 vehicle is away from the home depot.** A truck on a charger needs nobody; a truck on the
@@ -1136,7 +1136,7 @@ curve, and a grid has no room for one.
   **Scenario Sweep** answers *what would this cost under other assumptions*. It leaves the
   fleet alone and sweeps two ways at once: over the days of the range, and over four
   scenario axes — **scenario years**, **cost scenarios** (best/worst case), **V2G** on/off
-  and **external charging** on/off. Every combination is one full MILP solve, so the count
+  and **external charging** on/off. Every combination is one full MIQCP solve, so the count
   is the product of all of them; the tab states it before the button and warns past five.
   Each axis defaults to the single value the sidebar already carries, so the tab opens as a
   plain day sweep and only widens when asked — which keeps a sweep a comparison, with one
@@ -1549,7 +1549,7 @@ a console codepage and not the model — it does not happen under a UTF-8 locale
 money — fuel, electricity, tolls, battery wear, the demand charge — the objective carries
 terms that exist only to make the search behave: a flat charge per truck used, another per
 occupied charger slot, another per plug-in, a nudge to spread battery aging, a deterrent on
-public charging, a head count standing in for a roster the MILP cannot build, and a price on
+public charging, a head count standing in for a roster the MIQCP cannot build, and a price on
 breaking the driving limits so an undrivable trip does not come back as a bare "infeasible".
 On an **asset-sizing** run it also carries a charge per cable the day needs at its busiest;
 a disposition or a sweep does not, because there the station list is given and cannot be
@@ -1839,7 +1839,7 @@ of them, within 0.008 of the curve and exact at the breakpoints. That keeps it t
 constraints. Carrying the square itself needs a quadratic constraint, and `w × E_neg`
 would be cubic; measured on one day that cost 4× the solver throughput (2 631 nodes in
 120 s against 10 453) for the last 1.6 % of the shape. `soc_weight_factor = 0` removes the
-weighting and every quadratic term with it, leaving a pure MILP.
+weighting and every quadratic term with it, leaving a pure MIQCP.
 
 **`degradation_cost_€` is the weighted figure.** `v2g_equivalent_full_cycles` stays an
 unweighted physical cycle count, so the two are no longer related by a single €/EFC factor
@@ -1879,7 +1879,7 @@ overstate the PV surplus left for the trucks. The missing times of day are named
 
 ## Notes
 
-- **Compute** — full MILP runs can be expensive. Start with a small roster in
+- **Compute** — full MIQCP runs can be expensive. Start with a small roster in
   `fleet_dataset.xlsx`, a higher MIP gap (5–10 %) and a single day. Every charging station
   of the `charging` sheet adds one binary per 30-min step per bev, so a long station list
   costs solver time even when most of it stays idle.
