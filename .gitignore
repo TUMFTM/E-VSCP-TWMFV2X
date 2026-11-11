@@ -1,0 +1,17 @@
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+.python-version
+pyproject.toml
+uv.lock
+
+# Editor
+.vscode/
+.streamlit/
+
+# Generated data
+data/
+
+# OS
+Thumbs.db
